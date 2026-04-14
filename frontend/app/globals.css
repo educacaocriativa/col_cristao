@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TEMA COLÉGIO CRISTÃO - Tailwind v4 CSS-first configuration
+   ============================================================ */
+@theme {
+  /* Azul Royal - Cor principal da logo */
+  --color-cc-blue-50:  #eef1fb;
+  --color-cc-blue-100: #d5dcf3;
+  --color-cc-blue-200: #abbae7;
+  --color-cc-blue-300: #8097db;
+  --color-cc-blue-400: #5674cf;
+  --color-cc-blue-500: #2c51c3;
+  --color-cc-blue-600: #1e3ea0;
+  --color-cc-blue-700: #1b3a8f;
+  --color-cc-blue-800: #162f73;
+  --color-cc-blue-900: #102257;
+  --color-cc-blue-950: #0a1638;
+
+  /* Dourado - Cor de destaque da logo */
+  --color-cc-gold-50:  #fefce8;
+  --color-cc-gold-100: #fef9c3;
+  --color-cc-gold-200: #fef08a;
+  --color-cc-gold-300: #fde047;
+  --color-cc-gold-400: #f0c040;
+  --color-cc-gold-500: #eab308;
+  --color-cc-gold-600: #ca8a04;
+  --color-cc-gold-700: #a16207;
+  --color-cc-gold-800: #854d0e;
+  --color-cc-gold-900: #713f12;
+
+  /* Tipografia */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+
+  /* Animações */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-twinkle: twinkle 3s ease-in-out infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-12px) rotate(2deg); }
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 0.2; transform: scale(0.7); }
+  }
+
+  @keyframes bounce {
+    0%   { transform: translateY(0px); }
+    100% { transform: translateY(-8px); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 12px currentColor; }
+    50%       { box-shadow: 0 0 28px currentColor, 0 0 50px currentColor; }
+  }
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0a1638;
+  color: #ffffff;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #1b3a8f; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #f0c040; }
+
+/* Stars animation para background */
+.star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle var(--duration, 3s) ease-in-out infinite var(--delay, 0s);
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
