@@ -22,6 +22,7 @@ CREATE TABLE schools (
   manager_email VARCHAR(255) NOT NULL UNIQUE,
   manager_cpf VARCHAR(14) NOT NULL UNIQUE,
   active BOOLEAN DEFAULT true,
+  deleted_at TIMESTAMPTZ, -- soft delete
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -38,6 +39,7 @@ CREATE TABLE users (
   role VARCHAR(20) NOT NULL CHECK (role IN ('super_admin','admin','pedagogico','professor','aluno','pais')),
   cpf VARCHAR(14),
   whatsapp VARCHAR(20),
+  profile_code VARCHAR(20) UNIQUE, -- código gerado automaticamente (ADM25001, PRO25001, etc)
   active BOOLEAN DEFAULT true,
   last_login TIMESTAMPTZ,
   deleted_at TIMESTAMPTZ, -- soft delete
@@ -48,6 +50,7 @@ CREATE TABLE users (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_school ON users(school_id);
 CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_profile_code ON users(profile_code);
 
 -- ============================================================
 -- PERFIL DO ESTUDANTE (Cosmonautas) - dados completos
