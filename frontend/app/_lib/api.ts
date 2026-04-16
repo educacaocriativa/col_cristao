@@ -1,12 +1,32 @@
-import { getToken } from './auth';
+import { getToken, isDemoSession } from './auth';
+import { getDemoMockFor } from './demoMocks';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+export const DEMO_READONLY_MESSAGE =
+  'Você precisa estar logado para realizar essa operação';
 
 // ── Core fetch wrapper ────────────────────────────────────────
 async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // ── Modo demo: intercepta sem bater no backend ──
+  if (isDemoSession()) {
+    const method = (options.method ?? 'GET').toUpperCase();
+
+    // Qualquer mutação em demo bloqueia com alert padronizado
+    if (method !== 'GET') {
+      if (typeof window !== 'undefined') {
+        window.alert(DEMO_READONLY_MESSAGE);
+      }
+      throw new Error('DEMO_READONLY');
+    }
+
+    // GET → retorna mock mapeado para o path
+    return Promise.resolve(getDemoMockFor(path) as T);
+  }
+
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
