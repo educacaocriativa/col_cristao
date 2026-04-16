@@ -12,6 +12,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/config/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./backend/src/config/migration_class_teachers.sql:/docker-entrypoint-initdb.d/02_class_teachers.sql
+      - ./backend/src/config/migration_gamification.sql:/docker-entrypoint-initdb.d/03_gamification.sql
+      - ./backend/src/config/migration_profile_code.sql:/docker-entrypoint-initdb.d/04_profile_code.sql
     ports:
       - "5433:5432"
     healthcheck:
