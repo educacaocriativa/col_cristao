@@ -1,14 +1,24 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../../_lib/auth";
 import { TEACHER_CLASSES, CLASS_GRADES, CLASS_STUDENTS } from "../../_components/teacherMockData";
 import { MOCK_SUBJECTS } from "../../_components/mockData";
+import NonDemoPlaceholder from "../../_components/NonDemoPlaceholder";
 
 function scoreColor(v: number) {
   return v >= 85 ? "#34d399" : v >= 70 ? "#fbbf24" : "#f87171";
 }
 
 export default function RelatoriosPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHydrated(true);
+  }, []);
+
   const allGrades = useMemo(() => Object.values(CLASS_GRADES).flat(), []);
   const allStudents = useMemo(() => Object.values(CLASS_STUDENTS).flat(), []);
 
@@ -34,6 +44,9 @@ export default function RelatoriosPage() {
     const vals = allGrades.flatMap((g) => [g.bimester1, g.bimester2].filter((v): v is number => v !== undefined));
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   }, [allGrades]);
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="admin" />;
 
   return (
     <div className="p-6 space-y-6">

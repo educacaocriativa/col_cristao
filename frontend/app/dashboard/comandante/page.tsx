@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../_lib/auth";
 import { TEACHER_CLASSES, CLASS_GRADES, CLASS_STUDENTS } from "../_components/teacherMockData";
 import { MOCK_ANNOUNCEMENTS, MOCK_EVENTS } from "../_components/mockData";
+import NonDemoPlaceholder from "../_components/NonDemoPlaceholder";
 
 function scoreColor(v: number) {
   return v >= 85 ? "#34d399" : v >= 70 ? "#fbbf24" : "#f87171";
@@ -18,6 +20,14 @@ const MOCK_TEACHERS = [
 ];
 
 export default function ComandantePage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHydrated(true);
+  }, []);
+
   const totalStudents = useMemo(() => Object.values(CLASS_STUDENTS).flat().length, []);
 
   const allGrades = useMemo(() =>
@@ -43,6 +53,17 @@ export default function ComandantePage() {
     { icon: "⚠️",  label: "Em Risco",     value: atRisk,                     color: atRisk > 0 ? "#f87171" : "#34d399" },
     { icon: "📢",   label: "Comunicados",  value: MOCK_ANNOUNCEMENTS.length,  color: "#a78bfa" },
   ];
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) {
+    return (
+      <NonDemoPlaceholder
+        role="admin"
+        primaryActionHref="/dashboard/comandante/turmas"
+        primaryActionLabel="+ Cadastrar Turmas"
+      />
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

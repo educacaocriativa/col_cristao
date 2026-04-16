@@ -73,6 +73,35 @@ router.get('/deleted', authenticate, authorize('super_admin'), async (req: AuthR
   }
 });
 
+// Campos obrigatórios conforme schema (NOT NULL) — manter alinhado com schema.sql
+const REQUIRED_SCHOOL_FIELDS: Array<{ key: string; label: string }> = [
+  { key: 'name',             label: 'nome da unidade' },
+  { key: 'address',          label: 'endereço' },
+  { key: 'city',             label: 'cidade' },
+  { key: 'state',            label: 'estado' },
+  { key: 'manager_name',     label: 'nome do diretor' },
+  { key: 'manager_email',    label: 'e-mail do diretor' },
+  { key: 'manager_whatsapp', label: 'whatsapp do diretor' },
+  { key: 'manager_cpf',      label: 'CPF do diretor' },
+];
+
+function validateSchoolPayload(s: Record<string, unknown>): string[] {
+  const missing = REQUIRED_SCHOOL_FIELDS
+    .filter(({ key }) => !String(s[key] ?? '').trim())
+    .map(({ label }) => label);
+  const state = String(s.state ?? '').trim();
+  if (state && state.length !== 2) missing.push('estado deve ter 2 letras (UF)');
+  return missing;
+}
+
+function translateUniqueError(detail: string | undefined): string {
+  const d = detail ?? '';
+  if (d.includes('manager_email')) return 'E-mail do diretor já está em uso.';
+  if (d.includes('manager_cpf'))   return 'CPF do diretor já está em uso.';
+  if (d.includes('email'))         return 'E-mail já cadastrado.';
+  return 'Registro duplicado.';
+}
+
 // POST / — cria uma nova escola
 router.post('/', authenticate, authorize('super_admin'), async (req: AuthRequest, res: Response) => {
   try {
@@ -88,17 +117,32 @@ router.post('/', authenticate, authorize('super_admin'), async (req: AuthRequest
       manager_cpf,
     } = req.body;
 
+    const missing = validateSchoolPayload(req.body);
+    if (missing.length > 0) {
+      return res.status(400).json({ message: `Campos obrigatórios ausentes: ${missing.join(', ')}.` });
+    }
+
     const result = await query(
       `INSERT INTO schools (name, address, city, state, zip_code, manager_name, manager_email, manager_whatsapp, manager_cpf)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id`,
-      [name, address, city, state, zip_code, manager_name, manager_email, manager_whatsapp, manager_cpf]
+      [
+        name.trim(),
+        address.trim(),
+        city.trim(),
+        state.trim().toUpperCase(),
+        zip_code?.trim() || null,
+        manager_name.trim(),
+        manager_email.toLowerCase().trim(),
+        manager_whatsapp.trim(),
+        manager_cpf.trim(),
+      ]
     );
 
     res.status(201).json({ id: result.rows[0].id });
   } catch (err: any) {
     if (err.code === '23505') {
-      return res.status(409).json({ message: 'E-mail do gestor já está em uso.' });
+      return res.status(409).json({ message: translateUniqueError(err.detail) });
     }
     console.error('POST /schools:', err);
     res.status(500).json({ message: 'Erro ao criar escola.' });
@@ -120,8 +164,14 @@ router.post('/import', authenticate, authorize('super_admin'), async (req: AuthR
       const s = schoolsData[i];
       const rowNum = i + 1;
 
-      if (!s.name?.trim() || !s.city?.trim()) {
-        results.push({ row: rowNum, name: s.name || `Linha ${rowNum}`, success: false, error: 'nome_unidade e cidade são obrigatórios.' });
+      const missing = validateSchoolPayload(s);
+      if (missing.length > 0) {
+        results.push({
+          row: rowNum,
+          name: s.name || `Linha ${rowNum}`,
+          success: false,
+          error: `Campos obrigatórios ausentes: ${missing.join(', ')}.`,
+        });
         continue;
       }
 
@@ -132,14 +182,14 @@ router.post('/import', authenticate, authorize('super_admin'), async (req: AuthR
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
           [
             s.name.trim(),
-            s.address?.trim() || null,
+            s.address.trim(),
             s.city.trim(),
-            s.state?.trim() || null,
+            s.state.trim().toUpperCase(),
             s.zip_code?.trim() || null,
-            s.manager_name?.trim() || null,
-            s.manager_email?.trim() || null,
-            s.manager_whatsapp?.trim() || null,
-            s.manager_cpf?.trim() || null,
+            s.manager_name.trim(),
+            s.manager_email.toLowerCase().trim(),
+            s.manager_whatsapp.trim(),
+            s.manager_cpf.trim(),
           ]
         );
         const schoolId = schoolRes.rows[0].id;
@@ -170,7 +220,7 @@ router.post('/import', authenticate, authorize('super_admin'), async (req: AuthR
 
         results.push({ row: rowNum, name: s.name.trim(), success: true });
       } catch (err: any) {
-        const msg = err.code === '23505' ? 'E-mail já cadastrado.' : 'Erro ao criar escola.';
+        const msg = err.code === '23505' ? translateUniqueError(err.detail) : 'Erro ao criar escola.';
         results.push({ row: rowNum, name: s.name || `Linha ${rowNum}`, success: false, error: msg });
       }
     }

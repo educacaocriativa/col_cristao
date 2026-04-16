@@ -1,11 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../../_lib/auth";
 import { TEACHER_CLASSES, DIARY_ENTRIES } from "../../_components/teacherMockData";
+import NonDemoPlaceholder from "../../_components/NonDemoPlaceholder";
 
 export default function DiarioGlobalPage() {
   const [filterClass, setFilterClass] = useState<string>("all");
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHydrated(true);
+  }, []);
 
   const filtered = useMemo(() =>
     filterClass === "all"
@@ -16,6 +25,9 @@ export default function DiarioGlobalPage() {
   const sorted = useMemo(() =>
     [...filtered].sort((a, b) => b.date.localeCompare(a.date)),
     [filtered]);
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="professor" />;
 
   return (
     <div className="p-6 space-y-5">

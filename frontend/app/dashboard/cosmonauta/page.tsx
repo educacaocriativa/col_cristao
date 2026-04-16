@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getStoredUser, type AuthUser } from "../../_lib/auth";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../_lib/auth";
 import { getGreeting } from "../_lib/dashboardUtils";
 import CalendarWidget from "../_components/CalendarWidget";
 import ActivityCard from "../_components/ActivityCard";
+import NonDemoPlaceholder from "../_components/NonDemoPlaceholder";
 import {
   MOCK_SUBJECTS, MOCK_ACTIVITIES, MOCK_EVENTS, MOCK_ANNOUNCEMENTS,
   type Announcement,
@@ -60,10 +61,12 @@ function AnnouncementItem({ ann }: { ann: Announcement }) {
 
 export default function CosmonaulaPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     setUser(getStoredUser());
+    setHydrated(true);
     const interval = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(interval);
   }, []);
@@ -77,6 +80,9 @@ export default function CosmonaulaPage() {
 
   const greeting   = useMemo(() => getGreeting(), [currentTime]);
   const firstName  = user?.name?.split(" ")[0] ?? "Cosmonauta";
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="aluno" />;
 
   return (
     <div className="p-6 space-y-6">

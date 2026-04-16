@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../_lib/auth";
 import { TEACHER_CLASSES, CLASS_GRADES, CLASS_STUDENTS } from "../_components/teacherMockData";
+import NonDemoPlaceholder from "../_components/NonDemoPlaceholder";
 
 function scoreColor(v: number) {
   return v >= 85 ? "#34d399" : v >= 70 ? "#fbbf24" : "#f87171";
@@ -25,10 +27,29 @@ const BNCC_SKILLS = [
 ];
 
 export default function GeneralPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHydrated(true);
+  }, []);
+
   const networkStudents = MOCK_UNITS.reduce((s, u) => s + u.students, 0);
   const networkTeachers = MOCK_UNITS.reduce((s, u) => s + u.teachers, 0);
   const activeUnits     = MOCK_UNITS.filter((u) => u.active).length;
   const networkAvg      = MOCK_UNITS.reduce((s, u) => s + u.avg, 0) / MOCK_UNITS.length;
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) {
+    return (
+      <NonDemoPlaceholder
+        role="super_admin"
+        primaryActionHref="/dashboard/general/unidades"
+        primaryActionLabel="+ Cadastrar Unidades"
+      />
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

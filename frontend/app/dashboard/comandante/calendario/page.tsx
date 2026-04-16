@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../../_lib/auth";
 import { MOCK_EVENTS, type CalendarEvent } from "../../_components/mockData";
+import NonDemoPlaceholder from "../../_components/NonDemoPlaceholder";
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
   prova:      { label: "Prova",        color: "#f87171", bg: "rgba(248,113,113,0.12)", icon: "📋" },
@@ -14,6 +16,14 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; ic
 };
 
 export default function CalendarioPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHydrated(true);
+  }, []);
+
   const [events, setEvents] = useState<CalendarEvent[]>(MOCK_EVENTS);
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -40,6 +50,9 @@ export default function CalendarioPage() {
     const month = e.date.slice(0, 7);
     return { ...acc, [month]: [...(acc[month] ?? []), e] };
   }, {});
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="admin" />;
 
   return (
     <div className="p-6 space-y-5">

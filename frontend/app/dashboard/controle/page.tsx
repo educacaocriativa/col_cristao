@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getStoredUser } from "../../_lib/auth";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../_lib/auth";
 import { MOCK_GRADES, MOCK_ANNOUNCEMENTS, MOCK_SUBJECTS } from "../_components/mockData";
 import { CLASS_GRADES, CLASS_STUDENTS } from "../_components/teacherMockData";
+import NonDemoPlaceholder from "../_components/NonDemoPlaceholder";
 
 // Simulate "my child" — Alice Fernandes (s1, turma t1)
 const MY_CHILD = CLASS_STUDENTS["t1"]?.[0] ?? { name: "Alice Fernandes", enrollment: "2026001", initials: "AF" };
@@ -17,10 +18,14 @@ function scoreColor(v: number) {
 
 export default function ControlePage() {
   const [parentName, setParentName] = useState("Responsável");
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const u = getStoredUser();
+    setUser(u);
     if (u) setParentName(u.name.split(" ")[0]);
+    setHydrated(true);
   }, []);
 
   const avgGrade = useMemo(() => {
@@ -37,6 +42,9 @@ export default function ControlePage() {
     })), []);
 
   const unread = MOCK_ANNOUNCEMENTS.filter((a) => !a.read).length;
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="pais" />;
 
   return (
     <div className="p-6 space-y-6">

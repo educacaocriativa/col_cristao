@@ -1,15 +1,25 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../_lib/auth";
 import { TEACHER_CLASSES, CLASS_GRADES, DIARY_ENTRIES } from "../_components/teacherMockData";
 import { MOCK_ACTIVITIES, MOCK_ANNOUNCEMENTS } from "../_components/mockData";
+import NonDemoPlaceholder from "../_components/NonDemoPlaceholder";
 
 function scoreColor(v: number) {
   return v >= 85 ? "#34d399" : v >= 70 ? "#fbbf24" : "#f87171";
 }
 
 export default function NavegadorPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHydrated(true);
+  }, []);
+
   const totalStudents = useMemo(() => TEACHER_CLASSES.reduce((s, tc) => s + tc.studentCount, 0), []);
 
   const allGrades = useMemo(() =>
@@ -42,6 +52,9 @@ export default function NavegadorPage() {
     { href: "/dashboard/navegador/bncc",        icon: "🎯", label: "Mapear BNCC",     color: "#34d399", bg: "rgba(52,211,153,0.12)" },
     { href: "/dashboard/navegador/atividades",  icon: "📋", label: "Ver Expedições",  color: "#60a5fa", bg: "rgba(59,130,246,0.12)" },
   ];
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="pedagogico" />;
 
   return (
     <div className="p-6 space-y-6">

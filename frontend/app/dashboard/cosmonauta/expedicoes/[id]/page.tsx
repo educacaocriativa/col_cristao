@@ -2,11 +2,13 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../../../_lib/auth";
 import { FULL_ACTIVITIES, type Question } from "../../../_components/activityMockData";
 import MultipleChoice from "../../../_components/questions/MultipleChoice";
 import TrueFalse from "../../../_components/questions/TrueFalse";
 import MatchPairs from "../../../_components/questions/MatchPairs";
 import DragWords from "../../../_components/questions/DragWords";
+import NonDemoPlaceholder from "../../../_components/NonDemoPlaceholder";
 
 // ── Types ──────────────────────────────────────────────────
 type SingleAnswer   = string | null;
@@ -74,6 +76,14 @@ export default function ActivityPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const router  = useRouter();
 
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHydrated(true);
+  }, []);
+
   const activity = FULL_ACTIVITIES[id];
 
   const [current,   setCurrent]   = useState(0);
@@ -87,6 +97,9 @@ export default function ActivityPage({ params }: { params: Promise<{ id: string 
     started && !submitted ? totalSeconds : 0,
     () => { if (!submitted) handleSubmit(); }
   );
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="aluno" />;
 
   if (!activity) {
     return (

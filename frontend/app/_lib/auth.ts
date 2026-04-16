@@ -52,6 +52,21 @@ export const ROLE_DASHBOARD: Record<UserRole, string> = {
 const TOKEN_KEY = "cc_mission_token";
 const USER_KEY  = "cc_mission_user";
 
+// ── Demo detection ────────────────────────────────────────────
+// Usuários "demo" são criados pelos botões da tela de login (ver login/page.tsx).
+// Cada perfil demo nasce com id = "demo-<role>", schoolId = "demo-school",
+// e token literal "demo-token". Qualquer um desses marcadores indica sessão demo.
+export function isDemoUser(user: AuthUser | null | undefined): boolean {
+  if (!user) return false;
+  return user.id?.startsWith("demo-") === true || user.schoolId === "demo-school";
+}
+
+export function isDemoSession(): boolean {
+  if (typeof window === "undefined") return false;
+  if (localStorage.getItem(TOKEN_KEY) === "demo-token") return true;
+  return isDemoUser(getStoredUser());
+}
+
 export function saveSession(token: string, user: AuthUser): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(TOKEN_KEY, token);

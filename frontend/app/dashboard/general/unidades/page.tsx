@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { schoolsApi, turmasApi, usuariosApi, impersonateApi } from "../../../_lib/api";
 import { useQuery } from "../../../_lib/useQuery";
 import { startImpersonation, ROLE_DASHBOARD, type AuthUser, type UserRole } from "../../../_lib/auth";
+import Papa from 'papaparse';
 
 interface School {
   id: string; name: string; city: string; state: string;
@@ -21,12 +22,12 @@ interface GradeLevel { id: string; name: string; order_index: number; segment: s
 // ── Sub-components defined OUTSIDE to avoid remount on each render ──
 
 function FormField({
-  label, value, onChange, type = "text", placeholder = "",
-}: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+  label, value, onChange, type = "text", placeholder = "", maxLength,
+}: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; maxLength?: number }) {
   return (
     <div>
       <label className="text-xs font-semibold mb-1.5 block" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</label>
-      <input type={type} value={value} placeholder={placeholder}
+      <input type={type} value={value} placeholder={placeholder} maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/30 outline-none"
         style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
@@ -128,9 +129,14 @@ export default function UnidadesPage() {
   // ── CSV Import handlers ──────────────────────────────────────
 
   function downloadCsvTemplate() {
+    const notes = [
+      '# OBRIGATÓRIOS: nome_unidade, cidade, estado (UF 2 letras), endereco, nome_diretor, email_diretor, whatsapp_diretor, cpf_diretor',
+      '# OPCIONAIS: cep, nome_admin, email_admin, cpf_admin',
+      '# Linhas iniciadas com # são ignoradas. email e cpf do diretor precisam ser únicos.',
+    ].join('\n');
     const header = 'nome_unidade,cidade,estado,endereco,cep,nome_diretor,email_diretor,whatsapp_diretor,cpf_diretor,nome_admin,email_admin,cpf_admin';
     const example = '"Colégio Cristão Central","Curitiba","PR","Rua das Missões, 100","80000-000","Roberto Alves","diretor@escola.edu.br","41999990000","000.000.000-00","Maria Silva","admin@escola.edu.br","111.111.111-11"';
-    const csv = `${header}\n${example}\n`;
+    const csv = `${notes}\n${header}\n${example}\n`;
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -140,43 +146,30 @@ export default function UnidadesPage() {
     URL.revokeObjectURL(url);
   }
 
-  function parseCsvLine(line: string): string[] {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
-        else { inQuotes = !inQuotes; }
-      } else if ((ch === ',' || ch === ';') && !inQuotes) {
-        result.push(current.trim());
-        current = '';
-      } else {
-        current += ch;
-      }
-    }
-    result.push(current.trim());
-    return result;
-  }
+
 
   function handleCsvFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = (e.target?.result as string) ?? '';
-      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n').filter((l) => l.trim());
-      if (lines.length < 2) { alert('O arquivo CSV está vazio ou sem dados.'); return; }
-      const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, '_').replace(/^\uFEFF/, ''));
-      const rows = lines.slice(1).map((line) => {
-        const vals = parseCsvLine(line);
-        const obj: Record<string, string> = {};
-        headers.forEach((h, i) => { obj[h] = vals[i] ?? ''; });
-        return obj;
-      }).filter((r) => Object.values(r).some((v) => v.trim()));
-      setCsvRows(rows);
-      setCsvResults(null);
-    };
-    reader.readAsText(file, 'utf-8');
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      encoding: 'utf-8',
+      comments: '#',
+      transformHeader: (h: string) => h.trim().toLowerCase().replace(/^\uFEFF/, ''),
+      complete: (results: any) => {
+        if (results.errors.length > 0) {
+          alert('Erro ao analisar o CSV: ' + results.errors.map((e: any) => e.message).join(', '));
+          return;
+        }
+        const rows = (results.data as Record<string, string>[]).filter(
+          (r) => Object.values(r).some((v) => String(v ?? '').trim())
+        );
+        setCsvRows(rows);
+        setCsvResults(null);
+      },
+      error: (error: any) => {
+        alert('Erro ao ler o arquivo CSV: ' + error.message);
+      }
+    });
   }
 
   async function handleCsvImport() {
@@ -228,8 +221,28 @@ export default function UnidadesPage() {
     setStep(1);
   }
 
+  function validateSchoolForm(f: typeof EMPTY_SCHOOL): string[] {
+    const missing: string[] = [];
+    if (!f.name.trim())             missing.push("Nome da unidade");
+    if (!f.address.trim())          missing.push("Endereço");
+    if (!f.city.trim())             missing.push("Cidade");
+    if (!f.state.trim())            missing.push("Estado");
+    else if (f.state.trim().length !== 2) missing.push("Estado (2 letras — UF)");
+    if (!f.manager_name.trim())     missing.push("Nome do diretor");
+    if (!f.manager_email.trim())    missing.push("E-mail do diretor");
+    if (!f.manager_whatsapp.trim()) missing.push("WhatsApp do diretor");
+    if (!f.manager_cpf.trim())      missing.push("CPF do diretor");
+    return missing;
+  }
+
+  const schoolFormMissing = validateSchoolForm(schoolForm);
+
   async function handleSaveSchool() {
-    if (!schoolForm.name.trim() || !schoolForm.city.trim()) return;
+    const missing = validateSchoolForm(schoolForm);
+    if (missing.length > 0) {
+      alert(`Preencha os campos obrigatórios:\n• ${missing.join("\n• ")}`);
+      return;
+    }
     setSaving(true);
     try {
       const res = await schoolsApi.create(schoolForm) as { id: string };
@@ -658,6 +671,9 @@ export default function UnidadesPage() {
             {/* ── Step 1: Unidade ── */}
             {step === 1 && (
               <div className="space-y-3">
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  Todos os campos marcados com <span style={{ color: "#f0c040" }}>*</span> são obrigatórios.
+                </p>
                 <FormField label="Nome da Unidade *" value={schoolForm.name}
                   placeholder="Ex: Colégio Cristão Central"
                   onChange={(v) => setSchoolForm((p) => ({ ...p, name: v }))} />
@@ -665,35 +681,41 @@ export default function UnidadesPage() {
                   <FormField label="Cidade *" value={schoolForm.city}
                     placeholder="Curitiba"
                     onChange={(v) => setSchoolForm((p) => ({ ...p, city: v }))} />
-                  <FormField label="Estado" value={schoolForm.state}
-                    placeholder="PR"
-                    onChange={(v) => setSchoolForm((p) => ({ ...p, state: v }))} />
+                  <FormField label="Estado (UF) *" value={schoolForm.state}
+                    placeholder="PR" maxLength={2}
+                    onChange={(v) => setSchoolForm((p) => ({ ...p, state: v.toUpperCase() }))} />
                 </div>
-                <FormField label="Endereço" value={schoolForm.address}
+                <FormField label="Endereço *" value={schoolForm.address}
                   placeholder="Rua das Missões, 100"
                   onChange={(v) => setSchoolForm((p) => ({ ...p, address: v }))} />
                 <FormField label="CEP" value={schoolForm.zip_code}
                   placeholder="80000-000"
                   onChange={(v) => setSchoolForm((p) => ({ ...p, zip_code: v }))} />
                 <p className="text-xs font-bold pt-1" style={{ color: "rgba(255,255,255,0.5)" }}>Responsável pela unidade</p>
-                <FormField label="Nome do Diretor" value={schoolForm.manager_name}
+                <FormField label="Nome do Diretor *" value={schoolForm.manager_name}
                   placeholder="Roberto Alves"
                   onChange={(v) => setSchoolForm((p) => ({ ...p, manager_name: v }))} />
                 <div className="grid grid-cols-2 gap-3">
-                  <FormField label="E-mail do Diretor" value={schoolForm.manager_email}
+                  <FormField label="E-mail do Diretor *" value={schoolForm.manager_email}
                     type="email" placeholder="diretor@escola.edu.br"
                     onChange={(v) => setSchoolForm((p) => ({ ...p, manager_email: v }))} />
-                  <FormField label="WhatsApp" value={schoolForm.manager_whatsapp}
+                  <FormField label="WhatsApp *" value={schoolForm.manager_whatsapp}
                     placeholder="41999990000"
                     onChange={(v) => setSchoolForm((p) => ({ ...p, manager_whatsapp: v }))} />
                 </div>
-                <FormField label="CPF do Diretor" value={schoolForm.manager_cpf}
+                <FormField label="CPF do Diretor *" value={schoolForm.manager_cpf}
                   placeholder="000.000.000-00"
                   onChange={(v) => setSchoolForm((p) => ({ ...p, manager_cpf: v }))} />
+                {schoolFormMissing.length > 0 && (
+                  <p className="text-xs px-3 py-2 rounded-xl"
+                    style={{ background: "rgba(248,113,113,0.08)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}>
+                    Pendente: {schoolFormMissing.join(", ")}
+                  </p>
+                )}
                 <WizardActions
                   onSave={handleSaveSchool}
                   saveLabel="Criar Unidade →"
-                  canSave={!!schoolForm.name.trim() && !!schoolForm.city.trim()}
+                  canSave={schoolFormMissing.length === 0}
                   canSkip={false}
                 />
               </div>
@@ -1083,14 +1105,15 @@ export default function UnidadesPage() {
               style={{ background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.15)" }}>
               <p className="text-sm font-bold" style={{ color: "#f0c040" }}>Modelo de Planilha</p>
               <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                Baixe o modelo, preencha os dados e faça o upload. Colunas obrigatórias:
-                <span className="font-mono" style={{ color: "#f0c040" }}> nome_unidade</span>,
-                <span className="font-mono" style={{ color: "#f0c040" }}> cidade</span>.
-                As demais colunas são opcionais.
+                Baixe o modelo, preencha os dados e faça o upload. <span style={{ color: "#f87171" }}>Obrigatórias:</span>
+                <span className="font-mono" style={{ color: "#f0c040" }}> nome_unidade, cidade, estado (UF), endereco, nome_diretor, email_diretor, whatsapp_diretor, cpf_diretor</span>.
+                <br />
+                <span style={{ color: "rgba(255,255,255,0.5)" }}>Opcionais:</span>
+                <span className="font-mono"> cep, nome_admin, email_admin, cpf_admin</span>.
               </p>
               <div className="font-mono text-xs px-3 py-2 rounded-xl overflow-x-auto"
                 style={{ background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap" }}>
-                nome_unidade · cidade · estado · endereco · cep · nome_diretor · email_diretor · whatsapp_diretor · cpf_diretor · nome_admin · email_admin · cpf_admin
+                nome_unidade* · cidade* · estado* · endereco* · cep · nome_diretor* · email_diretor* · whatsapp_diretor* · cpf_diretor* · nome_admin · email_admin · cpf_admin
               </div>
               <button onClick={downloadCsvTemplate}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm"
@@ -1111,7 +1134,7 @@ export default function UnidadesPage() {
                     Clique para selecionar o arquivo CSV
                   </p>
                   <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
-                    Suporte a vírgula (,) e ponto-e-vírgula (;) como separadores
+                    Suporte a vírgula (,) e ponto-e-vírgula (;) como separadores. Salve o arquivo em UTF-8 para evitar problemas com acentos.
                   </p>
                 </label>
               </div>

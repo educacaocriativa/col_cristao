@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getStoredUser } from "../../../_lib/auth";
+import { getStoredUser, isDemoUser } from "../../../_lib/auth";
 import { socialApi } from "../../../_lib/api";
 
 /* ── Paleta de roles ─────────────────────────────────────── */
@@ -337,13 +337,14 @@ export default function CanalPage() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [expandedComments, setExpandedComments] = useState<string | null>(null);
   const [activeStory, setActiveStory] = useState<typeof MOCK_STORIES[0] | null>(null);
-  const [stories, setStories] = useState(MOCK_STORIES);
+  const [stories, setStories] = useState<typeof MOCK_STORIES>([]);
 
   const isTeacher = ["professor","pedagogico","admin","super_admin"].includes(me?.role ?? "");
 
   useEffect(() => {
     const u = getStoredUser();
     if (u) setMe({ id: u.id, name: u.name, role: u.role });
+    if (isDemoUser(u)) setStories(MOCK_STORIES);
   }, []);
 
   useEffect(() => {

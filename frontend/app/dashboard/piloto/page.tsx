@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getStoredUser } from "../../_lib/auth";
+import { getStoredUser, isDemoUser, type AuthUser } from "../../_lib/auth";
 import CalendarWidget from "../_components/CalendarWidget";
+import NonDemoPlaceholder from "../_components/NonDemoPlaceholder";
 import { TEACHER_CLASSES, DIARY_ENTRIES } from "../_components/teacherMockData";
 import { MOCK_EVENTS } from "../_components/mockData";
 
@@ -21,16 +22,23 @@ const WEEKDAY_SHORT: Record<string, string> = {
 
 export default function PilotoPage() {
   const [userName, setUserName] = useState("Professor");
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const u = getStoredUser();
+    setUser(u);
     if (u) setUserName(u.name.split(" ")[0]);
+    setHydrated(true);
   }, []);
 
   const todayKey     = WEEKDAY_INDEX[new Date().getDay()];
   const todayClasses = useMemo(() => TEACHER_CLASSES.filter((tc) => tc.schedule[todayKey]), [todayKey]);
   const totalStudents = useMemo(() => TEACHER_CLASSES.reduce((s, tc) => s + tc.studentCount, 0), []);
   const totalPending  = useMemo(() => TEACHER_CLASSES.reduce((s, tc) => s + tc.pendingGrades, 0), []);
+
+  if (!hydrated) return null;
+  if (!isDemoUser(user)) return <NonDemoPlaceholder role="professor" />;
 
   return (
     <div className="p-6 space-y-6">
