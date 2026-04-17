@@ -111,7 +111,7 @@ CREATE TABLE grade_levels (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(100) NOT NULL,      -- Ex: "4º Ano", "1ª Série EM"
   order_index INTEGER NOT NULL,    -- Para ordenação
-  segment VARCHAR(50) NOT NULL CHECK (segment IN ('fundamental_i','fundamental_ii','medio')),
+  segment VARCHAR(50) NOT NULL,
   max_alternatives INTEGER NOT NULL DEFAULT 4 -- 4 para fund., 5 para EM
 );
 

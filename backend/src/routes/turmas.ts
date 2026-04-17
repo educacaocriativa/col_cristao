@@ -126,14 +126,14 @@ router.post('/import', authorize('admin', 'super_admin'), async (req: AuthReques
         continue;
       }
 
-      // Resolve grade_level (por id se veio pronto, ou por nome — cria se não existir)
-      const gl = await resolveGradeLevel({ id: r.grade_level_id, name: r.grade_level_name });
-      if (!gl) {
-        results.push({ row: rowNum, name: r.name, success: false, error: 'ano_serie ausente ou inválido.' });
-        continue;
-      }
-
       try {
+        // Resolve grade_level (por id se veio pronto, ou por nome — cria se não existir)
+        const gl = await resolveGradeLevel({ id: r.grade_level_id, name: r.grade_level_name });
+        if (!gl) {
+          results.push({ row: rowNum, name: r.name, success: false, error: 'ano_serie ausente ou inválido.' });
+          continue;
+        }
+
         const shift = normalizeShift(r.shift);
         const fullName = `${gl.name} | ${r.name.trim()}`;
 
@@ -165,7 +165,12 @@ router.post('/import', authorize('admin', 'super_admin'), async (req: AuthReques
         results.push({ row: rowNum, name: fullName, success: true });
       } catch (err: any) {
         console.error(`POST /turmas/import linha ${rowNum}:`, err);
-        results.push({ row: rowNum, name: r.name, success: false, error: err.code === '23505' ? 'Turma duplicada.' : 'Erro ao criar turma.' });
+        const msg =
+          err.code === '23505' ? 'Turma duplicada.' :
+          err.code === '23514' ? `Valor inválido: ${err.constraint ?? 'check'}` :
+          err.code === '23502' ? `Campo obrigatório ausente: ${err.column ?? ''}` :
+          err.message || 'Erro ao criar turma.';
+        results.push({ row: rowNum, name: r.name, success: false, error: msg });
       }
     }
 
