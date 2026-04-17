@@ -24,6 +24,67 @@ async function awardCoins(userId: string, amount: number, reason: string, refId?
   );
 }
 
+// ── Helpers de importação ────────────────────────────────────
+const SHIFT_SYNONYMS: Record<string, string> = {
+  manha: 'manha', manhã: 'manha', matutino: 'manha',
+  tarde: 'tarde', vespertino: 'tarde',
+  noite: 'noturno', noturno: 'noturno',
+  integral: 'integral',
+};
+
+function normalizeShift(raw: string | undefined): string {
+  const k = (raw ?? '').trim().toLowerCase();
+  return SHIFT_SYNONYMS[k] ?? 'manha';
+}
+
+// Resolve um grade_level por id OU nome; cria se não existir.
+async function resolveGradeLevel(idOrName: { id?: string; name?: string }): Promise<{ id: string; name: string } | null> {
+  if (idOrName.id) {
+    const r = await query(`SELECT id, name FROM grade_levels WHERE id = $1`, [idOrName.id]);
+    if (r.rows.length) return r.rows[0];
+  }
+  const name = idOrName.name?.trim();
+  if (!name) return null;
+  const existing = await query(
+    `SELECT id, name FROM grade_levels WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+    [name]
+  );
+  if (existing.rows.length) return existing.rows[0];
+  // cria novo com segmento genérico e order_index ao final
+  const maxOrder = await query(`SELECT COALESCE(MAX(order_index), 0) AS mx FROM grade_levels`);
+  const nextOrder = Number(maxOrder.rows[0].mx) + 1;
+  const created = await query(
+    `INSERT INTO grade_levels (name, order_index, segment, max_alternatives)
+     VALUES ($1, $2, 'custom', 4) RETURNING id, name`,
+    [name, nextOrder]
+  );
+  return created.rows[0];
+}
+
+// Resolve/cria um subject por nome na escola.
+async function resolveSubjectByName(schoolId: string, name: string): Promise<string | null> {
+  const clean = name.trim();
+  if (!clean) return null;
+  const existing = await query(
+    `SELECT id FROM subjects
+     WHERE LOWER(name) = LOWER($1) AND (school_id = $2 OR school_id IS NULL)
+     ORDER BY (school_id = $2) DESC
+     LIMIT 1`,
+    [clean, schoolId]
+  );
+  if (existing.rows.length) return existing.rows[0].id;
+  // cria com code derivado (3 primeiras letras, upper)
+  const code = clean
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 5) || 'DISC';
+  const created = await query(
+    `INSERT INTO subjects (school_id, name, code, color, icon, active)
+     VALUES ($1, $2, $3, '#6366f1', '📚', true) RETURNING id`,
+    [schoolId, clean, code]
+  );
+  return created.rows[0].id;
+}
+
 // ── POST /api/turmas/import — importar turmas em lote ────────
 router.post('/import', authorize('admin', 'super_admin'), async (req: AuthRequest, res) => {
   try {
@@ -60,38 +121,51 @@ router.post('/import', authorize('admin', 'super_admin'), async (req: AuthReques
       const r = rows[i];
       const rowNum = i + 1;
 
-      if (!r.name?.trim() || !r.grade_level_id) {
-        results.push({ row: rowNum, name: r.name || `Linha ${rowNum}`, success: false, error: 'nome_turma e ano_serie são obrigatórios.' });
+      if (!r.name?.trim()) {
+        results.push({ row: rowNum, name: `Linha ${rowNum}`, success: false, error: 'nome_turma é obrigatório.' });
+        continue;
+      }
+
+      // Resolve grade_level (por id se veio pronto, ou por nome — cria se não existir)
+      const gl = await resolveGradeLevel({ id: r.grade_level_id, name: r.grade_level_name });
+      if (!gl) {
+        results.push({ row: rowNum, name: r.name, success: false, error: 'ano_serie ausente ou inválido.' });
         continue;
       }
 
       try {
-        const gl = await query(`SELECT name FROM grade_levels WHERE id = $1`, [r.grade_level_id]);
-        const glName = gl.rows[0]?.name ?? '';
-        const fullName = `${glName} | ${r.name.trim()}`;
+        const shift = normalizeShift(r.shift);
+        const fullName = `${gl.name} | ${r.name.trim()}`;
 
         const classRes = await query(
           `INSERT INTO classes (school_id, academic_year_id, grade_level_id, name, full_name, shift)
            VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-          [userSchoolId, ayId, r.grade_level_id, r.name.trim(), fullName, r.shift || 'manha']
+          [userSchoolId, ayId, gl.id, r.name.trim(), fullName, shift]
         );
         const classId = classRes.rows[0].id;
 
-        // Vincular disciplinas se informadas (array de IDs já resolvidos no frontend)
-        if (Array.isArray(r.subject_ids) && r.subject_ids.length > 0) {
-          for (const sid of r.subject_ids as string[]) {
-            await query(
-              `INSERT INTO class_subjects (class_id, subject_id)
-               SELECT $1, $2
-               WHERE NOT EXISTS (SELECT 1 FROM class_subjects WHERE class_id=$1 AND subject_id=$2)`,
-              [classId, sid]
-            );
+        // Resolve subject_ids (pelos IDs já prontos ou pelos nomes — cria se não existir)
+        const subjectIds: string[] = Array.isArray(r.subject_ids) ? [...r.subject_ids] : [];
+        if (Array.isArray(r.subject_names)) {
+          for (const sn of r.subject_names as string[]) {
+            const sid = await resolveSubjectByName(userSchoolId!, sn);
+            if (sid && !subjectIds.includes(sid)) subjectIds.push(sid);
           }
+        }
+
+        for (const sid of subjectIds) {
+          await query(
+            `INSERT INTO class_subjects (class_id, subject_id)
+             SELECT $1, $2
+             WHERE NOT EXISTS (SELECT 1 FROM class_subjects WHERE class_id=$1 AND subject_id=$2)`,
+            [classId, sid]
+          );
         }
 
         results.push({ row: rowNum, name: fullName, success: true });
       } catch (err: any) {
-        results.push({ row: rowNum, name: r.name || `Linha ${rowNum}`, success: false, error: 'Erro ao criar turma.' });
+        console.error(`POST /turmas/import linha ${rowNum}:`, err);
+        results.push({ row: rowNum, name: r.name, success: false, error: err.code === '23505' ? 'Turma duplicada.' : 'Erro ao criar turma.' });
       }
     }
 

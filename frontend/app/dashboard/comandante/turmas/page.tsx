@@ -68,22 +68,28 @@ export default function TurmasAdminPage() {
 
   function downloadTurmasTemplate() {
     // Usa ";" como separador de colunas (padrão BR no Excel)
-    // Usa "|" como separador de disciplinas dentro da célula
     const SEP = ';';
-    const header = `nome_turma${SEP}ano_serie${SEP}turno${SEP}disciplinas`;
-    const g0   = (gradeLevels ?? [])[0]?.name ?? '6º Ano';
-    const g1   = (gradeLevels ?? [])[1]?.name ?? '7º Ano';
-    const subs = (subjects ?? []).slice(0, 3).map(s => s.name).join('|') || 'Matemática|Português|Ciências';
-    const ex1  = `Cativante${SEP}${g0}${SEP}manha${SEP}${subs}`;
-    const ex2  = `Explorador${SEP}${g1}${SEP}tarde${SEP}${subs}`;
+    const header = `nome_turma${SEP}ano_serie${SEP}turno${SEP}disciplina`;
+    const rows = [
+      // Exemplo formato "longo" (uma linha por disciplina) — linhas com mesmo
+      // nome_turma+ano_serie+turno são agrupadas automaticamente
+      `Little Seeds${SEP}Infantil II${SEP}Vespertino${SEP}inglês`,
+      `Little Seeds${SEP}Infantil II${SEP}Vespertino${SEP}artes`,
+      `Little Seeds${SEP}Infantil II${SEP}Vespertino${SEP}psicomotricidade`,
+      `Shining Stars${SEP}Infantil III${SEP}Vespertino${SEP}inglês`,
+      `Shining Stars${SEP}Infantil III${SEP}Vespertino${SEP}artes`,
+    ];
     const note = [
-      `# Separador de colunas: ponto-e-vírgula (;)`,
-      `# Separador de disciplinas dentro da célula: pipe (|)`,
-      `# Turnos válidos: manha; tarde; noturno; integral`,
-      `# Anos disponíveis: ${(gradeLevels ?? []).map(g => g.name).join('; ')}`,
-      `# Disciplinas disponíveis: ${(subjects ?? []).map(s => s.name).join('; ')}`,
+      `# OBRIGATÓRIOS: nome_turma, ano_serie, turno, disciplina`,
+      `# FORMATO: uma linha por disciplina. Linhas com o mesmo (nome_turma, ano_serie, turno) são agrupadas como uma turma com múltiplas disciplinas.`,
+      `# TURNOS: manha, matutino, tarde, vespertino, noturno, integral (sinônimos aceitos).`,
+      `# ANO_SÉRIE: texto livre — se não existir ainda, é criado automaticamente (ex: "Infantil II", "Kingdom Kids", "1º Ano").`,
+      `# DISCIPLINA: texto livre — se não existir, é criada automaticamente na sua unidade.`,
+      `# (Alternativo) você pode usar a coluna "disciplinas" (plural) com várias separadas por | na mesma linha: ex. "inglês|artes|psicomot.".`,
+      `# Anos já cadastrados: ${(gradeLevels ?? []).map(g => g.name).join('; ') || '—'}`,
+      `# Disciplinas já cadastradas: ${(subjects ?? []).map(s => s.name).join('; ') || '—'}`,
     ].join('\n');
-    const csv = `${note}\n${header}\n${ex1}\n${ex2}\n`;
+    const csv = `${note}\n${header}\n${rows.join('\n')}\n`;
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -139,20 +145,41 @@ export default function TurmasAdminPage() {
     setCsvImporting(true);
     try {
       const glMap  = new Map((gradeLevels ?? []).map(g => [g.name.toLowerCase().trim(), g.id]));
-      const subMap = new Map((subjects ?? []).map(s => [s.name.toLowerCase().trim(), s.id]));
-      const payload = csvRows.map(r => {
-        const gradeName = (r['ano_serie'] || r['ano'] || r['serie'] || '').toLowerCase().trim();
-        const discRaw   = r['disciplinas'] || r['materias'] || '';
-        // aceita "|" (template BR) ou ";" como separador de disciplinas
-        const discSep   = discRaw.includes('|') ? '|' : ';';
-        const subjectIds = discRaw.split(discSep).map(d => subMap.get(d.trim().toLowerCase())).filter(Boolean) as string[];
-        return {
-          name:           r['nome_turma'] || r['nome'] || '',
-          grade_level_id: glMap.get(gradeName) ?? '',
-          shift:          (r['turno'] || 'manha').toLowerCase().trim(),
-          subject_ids:    subjectIds,
-        };
-      });
+
+      // 1. Agrega linhas por (nome_turma, ano_serie, turno) — disciplina (singular)
+      //    vira parte do conjunto; "disciplinas" (plural) mantém múltiplas separadas por | ou ;
+      type Aggregated = { name: string; gradeName: string; shift: string; subjects: Set<string> };
+      const agg = new Map<string, Aggregated>();
+
+      for (const r of csvRows) {
+        const name      = (r['nome_turma'] || r['nome'] || '').trim();
+        const gradeName = (r['ano_serie'] || r['ano'] || r['serie'] || '').trim();
+        const shift     = (r['turno'] || '').trim();
+        if (!name) continue;
+
+        const key = `${name.toLowerCase()}|${gradeName.toLowerCase()}|${shift.toLowerCase()}`;
+
+        // disciplinas: plural com separador | ou ;, ou singular (uma linha = uma disciplina)
+        const discPlural = (r['disciplinas'] || r['materias'] || '').trim();
+        const discSingle = (r['disciplina'] || r['materia']   || '').trim();
+        const rawSubjects = discPlural
+          ? discPlural.split(discPlural.includes('|') ? '|' : ';').map(s => s.trim()).filter(Boolean)
+          : discSingle ? [discSingle] : [];
+
+        if (!agg.has(key)) agg.set(key, { name, gradeName, shift, subjects: new Set() });
+        const row = agg.get(key)!;
+        rawSubjects.forEach(s => row.subjects.add(s));
+      }
+
+      // 2. Monta payload: envia id OU name pro backend resolver/criar
+      const payload = Array.from(agg.values()).map(a => ({
+        name:              a.name,
+        grade_level_id:    glMap.get(a.gradeName.toLowerCase()) ?? undefined,
+        grade_level_name:  a.gradeName || undefined,
+        shift:             a.shift || 'manha',
+        subject_names:     Array.from(a.subjects),
+      }));
+
       const res = await turmasApi.importBulk(payload) as { results: typeof csvResults; successCount: number };
       setCsvResults(res.results);
       if (res.successCount > 0) refetch();
