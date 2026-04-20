@@ -16,6 +16,7 @@ services:
       - ./backend/src/config/migration_gamification.sql:/docker-entrypoint-initdb.d/03_gamification.sql
       - ./backend/src/config/migration_profile_code.sql:/docker-entrypoint-initdb.d/04_profile_code.sql
       - ./backend/src/config/migration_grade_levels_segment.sql:/docker-entrypoint-initdb.d/05_grade_levels_segment.sql
+      - ./backend/src/config/migration_nullable_email.sql:/docker-entrypoint-initdb.d/06_nullable_email.sql
     ports:
       - "5433:5432"
     healthcheck:
