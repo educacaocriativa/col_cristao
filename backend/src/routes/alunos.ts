@@ -150,17 +150,31 @@ router.post('/import-bulk', authorize('admin', 'super_admin'), async (req: AuthR
     type ImportResult = { row: number; name: string; success: boolean; error?: string };
     const results: ImportResult[] = [];
 
+    const normalizeBirthDate = (raw?: string): string | null => {
+      if (!raw) return null;
+      const v = String(raw).trim();
+      if (!v) return null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+      const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) {
+        const [, d, mo, y] = m;
+        if (Number(mo) < 1 || Number(mo) > 12 || Number(d) < 1 || Number(d) > 31) return null;
+        return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+      }
+      return null;
+    };
+
     for (let i = 0; i < rows.length; i++) {
       const s = rows[i];
       const rowNum = i + 1;
 
-      if (!s.name?.trim() || !s.email?.trim() || !s.cpf?.trim()) {
-        results.push({ row: rowNum, name: s.name || `Linha ${rowNum}`, success: false, error: 'nome, email e cpf são obrigatórios.' });
+      if (!s.name?.trim()) {
+        results.push({ row: rowNum, name: s.name || `Linha ${rowNum}`, success: false, error: 'nome é obrigatório.' });
         continue;
       }
 
       const targetSchool = authRole === 'super_admin' ? (s.school_id || schoolId) : schoolId;
-      const cpfDigits = String(s.cpf).replace(/\D/g, '');
+      const cpfDigits = s.cpf ? String(s.cpf).replace(/\D/g, '') : '';
 
       try {
         const countRes = await query(
@@ -170,13 +184,14 @@ router.post('/import-bulk', authorize('admin', 'super_admin'), async (req: AuthR
         const seq = String(Number(countRes.rows[0].cnt) + 1).padStart(3, '0');
         const year = new Date().getFullYear().toString().slice(-2);
         const profileCode = `ALU${year}${seq}`;
-        const password = `${profileCode}@${cpfDigits.substring(0, 3)}`;
+        const pwdSuffix = cpfDigits.substring(0, 3) || Math.floor(100 + Math.random() * 900).toString();
+        const password = `${profileCode}@${pwdSuffix}`;
         const hash = await bcrypt.hash(password, 10);
 
         const userRes = await query(
           `INSERT INTO users (school_id, name, email, password_hash, role, cpf, whatsapp, profile_code, active)
            VALUES ($1,$2,$3,$4,'aluno',$5,$6,$7,true) RETURNING id`,
-          [targetSchool, s.name.trim(), s.email.toLowerCase().trim(), hash, cpfDigits || null, s.whatsapp?.trim() || null, profileCode]
+          [targetSchool, s.name.trim(), s.email?.trim() ? s.email.toLowerCase().trim() : null, hash, cpfDigits || null, s.whatsapp?.trim() || null, profileCode]
         );
         const userId = userRes.rows[0].id;
 
@@ -191,7 +206,7 @@ router.post('/import-bulk', authorize('admin', 'super_admin'), async (req: AuthR
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,true)`,
           [
             userId, targetSchool, s.name.trim(),
-            cpfDigits || null, s.rg || null, s.birth_date || null,
+            cpfDigits || null, s.rg || null, normalizeBirthDate(s.birth_date),
             s.address || null, s.address_number || null, s.address_complement || null,
             s.neighborhood || null, s.city || null, s.state || null, s.zip_code || null,
             s.internal_enrollment || null, s.sere_enrollment || null,
