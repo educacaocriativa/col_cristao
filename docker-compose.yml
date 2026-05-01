@@ -17,6 +17,7 @@ services:
       - ./backend/src/config/migration_profile_code.sql:/docker-entrypoint-initdb.d/04_profile_code.sql
       - ./backend/src/config/migration_grade_levels_segment.sql:/docker-entrypoint-initdb.d/05_grade_levels_segment.sql
       - ./backend/src/config/migration_nullable_email.sql:/docker-entrypoint-initdb.d/06_nullable_email.sql
+      - ./backend/src/config/migration_books.sql:/docker-entrypoint-initdb.d/07_books.sql
     ports:
       - "5433:5432"
     healthcheck:
@@ -49,6 +50,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@colegiocristao.edu.br}
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - backend_uploads:/app/uploads
     ports:
       - "3001:3001"
     depends_on:
@@ -74,3 +78,4 @@ services:
 
 volumes:
   postgres_data:
+  backend_uploads:

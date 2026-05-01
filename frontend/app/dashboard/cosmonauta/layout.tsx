@@ -11,6 +11,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/cosmonauta/notas",       label: "Log de Desempenho",    icon: "⭐" },
   { href: "/dashboard/cosmonauta/loja",        label: "Loja Galáctica",       icon: "🛍️" },
   { href: "/dashboard/cosmonauta/comunicados", label: "Comunicados",          icon: "📢", badge: 1 },
+  { href: "/dashboard/cosmonauta/livros",      label: "Meu Livro",            icon: "📚" },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -21,6 +22,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/cosmonauta/notas":       { title: "Log de Desempenho",    subtitle: "Suas notas e progresso bimestral" },
   "/dashboard/cosmonauta/loja":        { title: "Loja Galáctica",       subtitle: "Troque seus Estelares por prêmios" },
   "/dashboard/cosmonauta/comunicados": { title: "Comunicados",          subtitle: "Mensagens e avisos da escola" },
+  "/dashboard/cosmonauta/livros":      { title: "Meu Livro",            subtitle: "Material didático em PDF" },
 };
 
 export default function CosmonautaLayout({ children }: { children: React.ReactNode }) {

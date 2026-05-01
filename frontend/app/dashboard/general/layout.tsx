@@ -10,6 +10,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/general/usuarios",             label: "Usuários",            icon: "👥" },
   { href: "/dashboard/general/relatorios",           label: "Relatórios da Rede",  icon: "📊" },
   { href: "/dashboard/general/bncc",                 label: "BNCC / Currículo",    icon: "🎯" },
+  { href: "/dashboard/general/livros",               label: "Livros",              icon: "📚" },
   { href: "/dashboard/general/config",               label: "Configurações",       icon: "⚙️" },
 ];
 
@@ -20,6 +21,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/general/usuarios":             { title: "Usuários",           subtitle: "Gestão de contas e acessos" },
   "/dashboard/general/relatorios":           { title: "Relatórios da Rede", subtitle: "Dados consolidados da rede" },
   "/dashboard/general/bncc":                 { title: "BNCC / Currículo",   subtitle: "Habilidades e competências" },
+  "/dashboard/general/livros":               { title: "Livros",             subtitle: "Cadastre PDFs por unidade, ano e perfil" },
   "/dashboard/general/config":               { title: "Configurações",      subtitle: "Configurações globais da plataforma" },
 };
 

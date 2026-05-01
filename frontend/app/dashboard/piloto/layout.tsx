@@ -11,6 +11,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/piloto/atividades",       label: "Expedições",           icon: "📋" },
   { href: "/dashboard/piloto/materiais",        label: "Biblioteca Galáctica", icon: "📚" },
   { href: "/dashboard/piloto/diario",           label: "Diário de Bordo",      icon: "📔" },
+  { href: "/dashboard/piloto/livros",           label: "Meu Livro",            icon: "📖" },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -21,6 +22,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/piloto/atividades":      { title: "Expedições",           subtitle: "Gerencie atividades, provas e simulados" },
   "/dashboard/piloto/materiais":       { title: "Biblioteca Galáctica", subtitle: "Videoaulas e PDFs por disciplina" },
   "/dashboard/piloto/diario":          { title: "Diário de Bordo",      subtitle: "Registros pedagógicos diários" },
+  "/dashboard/piloto/livros":          { title: "Meu Livro",            subtitle: "Material didático em PDF" },
 };
 
 export default function PilotoLayout({ children }: { children: React.ReactNode }) {

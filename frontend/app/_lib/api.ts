@@ -333,6 +333,24 @@ export const impersonateApi = {
   start: (userId: string) => api.post(`/api/usuarios/${userId}/impersonate`, {}),
 };
 
+// Livros
+export const booksApi = {
+  list: () => api.get('/api/books'),
+  delete: (id: string) => api.delete(`/api/books/${id}`),
+  fileUrl: (id: string) => `${BASE}/api/books/${id}/file`,
+  create: async (form: FormData) => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE}/api/books`, { method: 'POST', body: form, headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+};
+
 // ── Utility ───────────────────────────────────────────────────
 function toQuery(params?: Record<string, string>): string {
   if (!params || !Object.keys(params).length) return '';

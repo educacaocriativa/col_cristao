@@ -10,6 +10,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/navegador/atividades",     label: "Expedições",           icon: "📋" },
   { href: "/dashboard/navegador/comunicados",    label: "Comunicados",          icon: "📢" },
   { href: "/dashboard/navegador/bncc",           label: "BNCC e Habilidades",   icon: "🎯" },
+  { href: "/dashboard/navegador/livros",         label: "Meu Livro",            icon: "📖" },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -19,6 +20,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/navegador/atividades": { title: "Expedições",           subtitle: "Atividades de todas as turmas" },
   "/dashboard/navegador/comunicados":{ title: "Comunicados",          subtitle: "Avisos e comunicações" },
   "/dashboard/navegador/bncc":       { title: "BNCC e Habilidades",   subtitle: "Mapeamento curricular" },
+  "/dashboard/navegador/livros":     { title: "Meu Livro",            subtitle: "Material didático em PDF" },
 };
 
 export default function NavegadorLayout({ children }: { children: React.ReactNode }) {

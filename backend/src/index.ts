@@ -19,6 +19,7 @@ import schoolsRoutes from './routes/schools';
 import bnccRoutes from './routes/bncc';
 import subjectsRoutes from './routes/subjects';
 import scheduleRoutes from './routes/schedule';
+import booksRoutes from './routes/books';
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.use('/api/schools', schoolsRoutes);
 app.use('/api/bncc', bnccRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/books', booksRoutes);
 
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

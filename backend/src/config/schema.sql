@@ -562,3 +562,37 @@ CREATE TRIGGER trigger_student_profiles_updated BEFORE UPDATE ON student_profile
 CREATE TRIGGER trigger_questions_updated BEFORE UPDATE ON questions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trigger_activities_updated BEFORE UPDATE ON activities FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trigger_grades_updated BEFORE UPDATE ON grades FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- LIVROS — biblioteca de PDFs por unidade/ano/perfil
+-- ============================================================
+CREATE TABLE books (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(255) NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size BIGINT,
+  mime_type VARCHAR(100),
+  for_aluno BOOLEAN DEFAULT false,
+  for_professor BOOLEAN DEFAULT false,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  deleted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_books_deleted_at ON books(deleted_at);
+
+CREATE TABLE book_schools (
+  book_id   UUID NOT NULL REFERENCES books(id)   ON DELETE CASCADE,
+  school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  PRIMARY KEY (book_id, school_id)
+);
+CREATE INDEX idx_book_schools_school ON book_schools(school_id);
+
+CREATE TABLE book_grade_levels (
+  book_id        UUID NOT NULL REFERENCES books(id)        ON DELETE CASCADE,
+  grade_level_id UUID NOT NULL REFERENCES grade_levels(id) ON DELETE CASCADE,
+  PRIMARY KEY (book_id, grade_level_id)
+);
+CREATE INDEX idx_book_grade_levels_grade ON book_grade_levels(grade_level_id);
+
+CREATE TRIGGER trigger_books_updated BEFORE UPDATE ON books FOR EACH ROW EXECUTE FUNCTION update_updated_at();
