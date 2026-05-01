@@ -118,7 +118,7 @@ export default function MeuLivroView() {
             </div>
             <div className="flex items-center gap-2">
               <a
-                href={booksApi.fileUrl(openBook.id) + `?token=`}
+                href={booksApi.fileUrlWithToken(openBook.id)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-2 rounded-xl text-xs font-semibold"

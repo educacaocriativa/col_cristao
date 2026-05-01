@@ -192,7 +192,7 @@ export default function LivrosAdminPage() {
               </div>
               <div className="flex flex-col gap-1.5 shrink-0">
                 <a
-                  href={booksApi.fileUrl(b.id)}
+                  href={booksApi.fileUrlWithToken(b.id)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs px-3 py-1.5 rounded-lg font-semibold text-center"

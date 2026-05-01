@@ -1,10 +1,30 @@
-import { Router, Response } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { query } from '../config/database';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
+import { verifyToken } from '../config/jwt';
+
+// Auth para download de arquivo: aceita token via header Authorization
+// OU via query string (?token=...). Necessário para abrir PDF em nova aba.
+function authenticateFile(req: AuthRequest, res: Response, next: NextFunction): void {
+  const header = req.headers.authorization;
+  const headerToken = header?.startsWith('Bearer ') ? header.split(' ')[1] : null;
+  const queryToken  = typeof req.query.token === 'string' ? req.query.token : null;
+  const token = headerToken || queryToken;
+  if (!token) {
+    res.status(401).json({ message: 'Token de acesso não fornecido.' });
+    return;
+  }
+  try {
+    req.user = verifyToken(token);
+    next();
+  } catch {
+    res.status(401).json({ message: 'Token inválido ou expirado.' });
+  }
+}
 
 const router = Router();
 
@@ -201,7 +221,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // ── GET /:id/file — stream do PDF ───────────────────────────────
-router.get('/:id/file', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/:id/file', authenticateFile, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const result = await query(

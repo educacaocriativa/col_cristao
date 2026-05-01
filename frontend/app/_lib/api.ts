@@ -338,6 +338,11 @@ export const booksApi = {
   list: () => api.get('/api/books'),
   delete: (id: string) => api.delete(`/api/books/${id}`),
   fileUrl: (id: string) => `${BASE}/api/books/${id}/file`,
+  // URL com token na query — usar SOMENTE para "abrir em nova aba" / link direto
+  fileUrlWithToken: (id: string) => {
+    const t = getToken();
+    return t ? `${BASE}/api/books/${id}/file?token=${encodeURIComponent(t)}` : `${BASE}/api/books/${id}/file`;
+  },
   create: async (form: FormData) => {
     const token = getToken();
     const headers: Record<string, string> = {};
