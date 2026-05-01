@@ -336,7 +336,10 @@ export const impersonateApi = {
 // Livros
 export const booksApi = {
   list: () => api.get('/api/books'),
+  collections: () => api.get('/api/books/collections'),
+  createCollection: (body: unknown) => api.post('/api/books/collections', body),
   subjectSuggestions: () => api.get<string[]>('/api/books/subjects/suggestions'),
+  deleteCollection: (id: string) => api.delete(`/api/books/collections/${id}`),
   delete: (id: string) => api.delete(`/api/books/${id}`),
   fileUrl: (id: string) => `${BASE}/api/books/${id}/file`,
   // URL com token na query — usar SOMENTE para "abrir em nova aba" / link direto
@@ -349,6 +352,17 @@ export const booksApi = {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${BASE}/api/books`, { method: 'POST', body: form, headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+  addItem: async (collectionId: string, form: FormData) => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE}/api/books/collections/${collectionId}/items`, { method: 'POST', body: form, headers });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
       throw new Error(err.message || `HTTP ${res.status}`);

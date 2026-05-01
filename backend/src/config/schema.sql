@@ -566,8 +566,22 @@ CREATE TRIGGER trigger_grades_updated BEFORE UPDATE ON grades FOR EACH ROW EXECU
 -- ============================================================
 -- LIVROS — biblioteca de PDFs por unidade/ano/perfil
 -- ============================================================
+CREATE TABLE book_collections (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(255) NOT NULL,
+  subject VARCHAR(150),
+  for_aluno BOOLEAN DEFAULT false,
+  for_professor BOOLEAN DEFAULT false,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  deleted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_book_collections_deleted_at ON book_collections(deleted_at);
+
 CREATE TABLE books (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  collection_id UUID REFERENCES book_collections(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   subject VARCHAR(150),
   file_path TEXT NOT NULL,
@@ -580,6 +594,7 @@ CREATE TABLE books (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE INDEX idx_books_collection_id ON books(collection_id);
 CREATE INDEX idx_books_deleted_at ON books(deleted_at);
 
 CREATE TABLE book_schools (
@@ -596,4 +611,5 @@ CREATE TABLE book_grade_levels (
 );
 CREATE INDEX idx_book_grade_levels_grade ON book_grade_levels(grade_level_id);
 
+CREATE TRIGGER trigger_book_collections_updated BEFORE UPDATE ON book_collections FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trigger_books_updated BEFORE UPDATE ON books FOR EACH ROW EXECUTE FUNCTION update_updated_at();

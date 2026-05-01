@@ -8,7 +8,17 @@
     "start": "node dist/index.js",
     "db:init": "psql -U postgres -d colegio_cristao -f src/config/schema.sql",
     "db:seed": "ts-node src/seeds/seed.ts",
-    "db:seed:prod": "node dist/seeds/seed.js"
+    "db:seed:prod": "node dist/seeds/seed.js",
+    "students:reset-passwords:preview": "ts-node src/scripts/resetStudentPasswordsFromMother.ts",
+    "students:reset-passwords": "ts-node src/scripts/resetStudentPasswordsFromMother.ts --apply",
+    "students:reset-passwords:prod:preview": "node dist/scripts/resetStudentPasswordsFromMother.js",
+    "students:reset-passwords:prod": "node dist/scripts/resetStudentPasswordsFromMother.js --apply",
+    "teachers:reset-passwords:preview": "ts-node src/scripts/resetTeacherPasswordsFromEmailCpf.ts",
+    "teachers:reset-passwords": "ts-node src/scripts/resetTeacherPasswordsFromEmailCpf.ts --apply",
+    "teachers:reset-passwords:prod:preview": "node dist/scripts/resetTeacherPasswordsFromEmailCpf.js",
+    "teachers:reset-passwords:prod": "node dist/scripts/resetTeacherPasswordsFromEmailCpf.js --apply",
+    "passwords:export": "ts-node src/scripts/exportResetPasswordsCsv.ts",
+    "passwords:export:prod": "node dist/scripts/exportResetPasswordsCsv.js"
   },
   "keywords": [],
   "author": "",
