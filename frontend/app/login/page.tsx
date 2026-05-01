@@ -120,9 +120,9 @@ export default function LoginPage() {
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base" aria-hidden>📧</span>
                 <input
-                  id="email" type="email" autoComplete="email" required
+                  id="email" type="text" autoComplete="username" required
                   value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
+                  placeholder="e-mail ou matricula"
                   className="w-full pl-11 pr-4 py-3.5 rounded-xl text-sm transition-all duration-200"
                   style={{ background: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.12)", color: "#ffffff", outline: "none" }}
                   onFocus={(e) => { e.currentTarget.style.border = "1.5px solid rgba(240,192,64,0.6)"; e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(240,192,64,0.1)"; }}

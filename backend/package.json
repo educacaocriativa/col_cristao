@@ -18,7 +18,9 @@
     "teachers:reset-passwords:prod:preview": "node dist/scripts/resetTeacherPasswordsFromEmailCpf.js",
     "teachers:reset-passwords:prod": "node dist/scripts/resetTeacherPasswordsFromEmailCpf.js --apply",
     "passwords:export": "ts-node src/scripts/exportResetPasswordsCsv.ts",
-    "passwords:export:prod": "node dist/scripts/exportResetPasswordsCsv.js"
+    "passwords:export:prod": "node dist/scripts/exportResetPasswordsCsv.js",
+    "students:login-audit": "ts-node src/scripts/exportStudentLoginAuditCsv.ts",
+    "students:login-audit:prod": "node dist/scripts/exportStudentLoginAuditCsv.js"
   },
   "keywords": [],
   "author": "",
