@@ -336,6 +336,7 @@ export const impersonateApi = {
 // Livros
 export const booksApi = {
   list: () => api.get('/api/books'),
+  subjectSuggestions: () => api.get<string[]>('/api/books/subjects/suggestions'),
   delete: (id: string) => api.delete(`/api/books/${id}`),
   fileUrl: (id: string) => `${BASE}/api/books/${id}/file`,
   // URL com token na query — usar SOMENTE para "abrir em nova aba" / link direto

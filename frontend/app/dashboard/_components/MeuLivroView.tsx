@@ -6,6 +6,7 @@ import { booksApi } from "../../_lib/api";
 interface Book {
   id: string;
   name: string;
+  subject: string | null;
   file_size: number | null;
   for_aluno: boolean;
   for_professor: boolean;
@@ -88,6 +89,11 @@ export default function MeuLivroView() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-white truncate">{b.name}</p>
+                  {b.subject && (
+                    <p className="text-xs mt-0.5 font-semibold" style={{ color: "#f0c040" }}>
+                      {b.subject}
+                    </p>
+                  )}
                   <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
                     {b.grade_levels.map((g) => g.name).join(" · ") || "—"}
                   </p>
@@ -113,7 +119,7 @@ export default function MeuLivroView() {
             <div className="min-w-0">
               <p className="text-sm font-bold text-white truncate">{openBook.name}</p>
               <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {openBook.grade_levels.map((g) => g.name).join(" · ")}
+                {openBook.subject ? `${openBook.subject} · ` : ""}{openBook.grade_levels.map((g) => g.name).join(" · ")}
               </p>
             </div>
             <div className="flex items-center gap-2">

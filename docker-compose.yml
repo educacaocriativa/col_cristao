@@ -18,6 +18,7 @@ services:
       - ./backend/src/config/migration_grade_levels_segment.sql:/docker-entrypoint-initdb.d/05_grade_levels_segment.sql
       - ./backend/src/config/migration_nullable_email.sql:/docker-entrypoint-initdb.d/06_nullable_email.sql
       - ./backend/src/config/migration_books.sql:/docker-entrypoint-initdb.d/07_books.sql
+      - ./backend/src/config/migration_books_subject.sql:/docker-entrypoint-initdb.d/08_books_subject.sql
     ports:
       - "5433:5432"
     healthcheck:

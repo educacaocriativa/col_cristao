@@ -569,6 +569,7 @@ CREATE TRIGGER trigger_grades_updated BEFORE UPDATE ON grades FOR EACH ROW EXECU
 CREATE TABLE books (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
+  subject VARCHAR(150),
   file_path TEXT NOT NULL,
   file_size BIGINT,
   mime_type VARCHAR(100),

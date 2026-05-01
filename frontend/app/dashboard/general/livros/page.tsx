@@ -6,6 +6,7 @@ import { booksApi, schoolsApi } from "../../../_lib/api";
 interface Book {
   id: string;
   name: string;
+  subject: string | null;
   file_size: number | null;
   for_aluno: boolean;
   for_professor: boolean;
@@ -33,6 +34,8 @@ export default function LivrosAdminPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState("");
+  const [subject, setSubject] = useState("");
+  const [subjectSuggestions, setSubjectSuggestions] = useState<string[]>([]);
   const [selectedSchools, setSelectedSchools] = useState<Set<string>>(new Set());
   const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
   const [forAluno, setForAluno] = useState(true);
@@ -49,6 +52,7 @@ export default function LivrosAdminPage() {
       booksApi.list().then((d) => setBooks(d as Book[])),
       schoolsApi.list().then((d) => setSchools(d as School[])),
       schoolsApi.gradeLevels().then((d) => setGradeLevels(d as GradeLevel[])),
+      booksApi.subjectSuggestions().then((d) => setSubjectSuggestions(d ?? [])).catch(() => {}),
     ])
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -62,6 +66,7 @@ export default function LivrosAdminPage() {
 
   function resetForm() {
     setName("");
+    setSubject("");
     setSelectedSchools(new Set());
     setSelectedGrades(new Set());
     setForAluno(true);
@@ -87,6 +92,7 @@ export default function LivrosAdminPage() {
     try {
       const fd = new FormData();
       fd.append("name", name.trim());
+      if (subject.trim()) fd.append("subject", subject.trim());
       fd.append("file", file!);
       fd.append("school_ids", JSON.stringify(Array.from(selectedSchools)));
       fd.append("grade_level_ids", JSON.stringify(Array.from(selectedGrades)));
@@ -163,7 +169,7 @@ export default function LivrosAdminPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-white truncate">{b.name}</p>
                 <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  {b.grade_levels.map((g) => g.name).join(" · ") || "—"}
+                  {b.subject ? `${b.subject} · ` : ""}{b.grade_levels.map((g) => g.name).join(" · ") || "—"}
                 </p>
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {b.schools.map((s) => (
@@ -253,6 +259,29 @@ export default function LivrosAdminPage() {
                 className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/30 outline-none"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold mb-1.5 block" style={{ color: "rgba(255,255,255,0.5)" }}>
+                Disciplina
+              </label>
+              <input
+                type="text"
+                list="subject-suggestions"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Ex: Matemática, Língua Portuguesa, Ciências..."
+                className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/30 outline-none"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+              />
+              <datalist id="subject-suggestions">
+                {subjectSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+              <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Comece a digitar para ver sugestões. Você também pode escrever uma nova.
+              </p>
             </div>
 
             <div>

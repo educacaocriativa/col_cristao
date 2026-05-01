@@ -72,7 +72,7 @@ function toBool(raw: unknown): boolean {
 
 async function loadBookWithLinks(bookId: string) {
   const bookRes = await query(
-    `SELECT id, name, file_path, file_size, mime_type, for_aluno, for_professor, created_at
+    `SELECT id, name, subject, file_path, file_size, mime_type, for_aluno, for_professor, created_at
        FROM books WHERE id = $1 AND deleted_at IS NULL`,
     [bookId]
   );
@@ -105,7 +105,7 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const file = req.file;
-      const { name } = req.body;
+      const { name, subject } = req.body;
       const schoolIds = parseIdList(req.body.school_ids);
       const gradeIds  = parseIdList(req.body.grade_level_ids);
       const forAluno     = toBool(req.body.for_aluno);
@@ -124,10 +124,11 @@ router.post(
       }
 
       const bookRes = await query(
-        `INSERT INTO books (name, file_path, file_size, mime_type, for_aluno, for_professor, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        `INSERT INTO books (name, subject, file_path, file_size, mime_type, for_aluno, for_professor, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
         [
           name.trim(),
+          (typeof subject === 'string' && subject.trim()) ? subject.trim() : null,
           path.basename(file!.path),
           file!.size,
           file!.mimetype,
@@ -200,7 +201,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     const result = await query(
-      `SELECT b.id, b.name, b.file_size, b.for_aluno, b.for_professor, b.created_at,
+      `SELECT b.id, b.name, b.subject, b.file_size, b.for_aluno, b.for_professor, b.created_at,
               COALESCE(json_agg(DISTINCT jsonb_build_object('id', s.id, 'name', s.name)) FILTER (WHERE s.id IS NOT NULL), '[]') AS schools,
               COALESCE(json_agg(DISTINCT jsonb_build_object('id', g.id, 'name', g.name, 'order_index', g.order_index)) FILTER (WHERE g.id IS NOT NULL), '[]') AS grade_levels
          FROM books b
@@ -242,6 +243,22 @@ router.get('/:id/file', authenticateFile, async (req: AuthRequest, res: Response
   } catch (err) {
     console.error('GET /books/:id/file:', err);
     res.status(500).json({ message: 'Erro ao carregar arquivo.' });
+  }
+});
+
+// ── GET /subjects/suggestions — nomes distintos de disciplinas (super_admin) ─
+router.get('/subjects/suggestions', authenticate, authorize('super_admin'), async (_req: AuthRequest, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT DISTINCT name FROM subjects WHERE active = true
+       UNION
+       SELECT DISTINCT subject AS name FROM books WHERE subject IS NOT NULL AND deleted_at IS NULL
+       ORDER BY name`
+    );
+    res.json(result.rows.map((r) => r.name));
+  } catch (err) {
+    console.error('GET /books/subjects/suggestions:', err);
+    res.status(500).json({ message: 'Erro ao listar disciplinas.' });
   }
 });
 
