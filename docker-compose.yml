@@ -53,6 +53,7 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@colegiocristao.edu.br}
       UPLOADS_DIR: /app/uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-400}
     volumes:
       - backend_uploads:/app/uploads
     ports:

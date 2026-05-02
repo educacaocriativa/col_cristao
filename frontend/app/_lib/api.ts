@@ -337,6 +337,7 @@ export const impersonateApi = {
 export const booksApi = {
   list: () => api.get('/api/books'),
   collections: () => api.get('/api/books/collections'),
+  myCollections: () => api.get('/api/books/my-collections'),
   createCollection: (body: unknown) => api.post('/api/books/collections', body),
   subjectSuggestions: () => api.get<string[]>('/api/books/subjects/suggestions'),
   deleteCollection: (id: string) => api.delete(`/api/books/collections/${id}`),

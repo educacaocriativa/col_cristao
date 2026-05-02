@@ -6,6 +6,7 @@ import { booksApi, schoolsApi } from "../../../_lib/api";
 
 interface BookItem {
   id: string;
+  name: string;
   file_size: number | null;
   schools: { id: string; name: string }[];
   grade_levels: { id: string; name: string; order_index: number }[];
@@ -63,6 +64,7 @@ export default function LivrosAdminPage() {
 
   const [selectedSchool, setSelectedSchool] = useState("");
   const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
+  const [itemName, setItemName] = useState("");
   const [file, setFile] = useState<File | null>(null);
 
   const sortedSchools = useMemo(
@@ -103,6 +105,7 @@ export default function LivrosAdminPage() {
   function resetItemForm() {
     setSelectedSchool("");
     setSelectedGrades(new Set());
+    setItemName("");
     setFile(null);
     setError(null);
   }
@@ -117,7 +120,7 @@ export default function LivrosAdminPage() {
   async function createCollection() {
     setError(null);
     const missing: string[] = [];
-    if (!name.trim()) missing.push("nome do livro principal");
+    if (!name.trim()) missing.push("nome do livro");
     if (!forAluno && !forProfessor) missing.push("aluno e/ou professor");
     if (missing.length) {
       setError(`Preencha: ${missing.join(", ")}.`);
@@ -137,7 +140,7 @@ export default function LivrosAdminPage() {
       setShowCollectionForm(false);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Erro ao criar livro principal.",
+        err instanceof Error ? err.message : "Erro ao criar livro.",
       );
     } finally {
       setSubmitting(false);
@@ -148,6 +151,7 @@ export default function LivrosAdminPage() {
     if (!itemCollection) return;
     setError(null);
     const missing: string[] = [];
+    if (!itemName.trim()) missing.push("nome do PDF");
     if (!selectedSchool) missing.push("unidade");
     if (selectedGrades.size === 0) missing.push("ano escolar");
     if (!file) missing.push("PDF");
@@ -159,6 +163,7 @@ export default function LivrosAdminPage() {
     setSubmitting(true);
     try {
       const fd = new FormData();
+      fd.append("item_name", itemName.trim());
       fd.append("file", file!);
       fd.append("school_ids", JSON.stringify([selectedSchool]));
       fd.append("grade_level_ids", JSON.stringify(Array.from(selectedGrades)));
@@ -176,7 +181,7 @@ export default function LivrosAdminPage() {
   async function removeCollection(collection: BookCollection) {
     if (
       !confirm(
-        `Remover o livro principal "${collection.name}" e todos os PDFs dentro dele?`,
+        `Remover o livro "${collection.name}" e todos os PDFs dentro dele?`,
       )
     )
       return;
@@ -196,7 +201,7 @@ export default function LivrosAdminPage() {
         <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
           {loading
             ? "Carregando..."
-            : `${collections.length} livro${collections.length !== 1 ? "s" : ""} principal${collections.length !== 1 ? "is" : ""}`}
+            : `${collections.length} livro${collections.length !== 1 ? "s" : ""}`}
         </p>
         <button
           onClick={() => {
@@ -223,13 +228,13 @@ export default function LivrosAdminPage() {
           }}
         >
           <p className="text-base font-semibold text-white">
-            Nenhum livro principal cadastrado
+            Nenhum livro cadastrado
           </p>
           <p
             className="text-sm mt-1"
             style={{ color: "rgba(255,255,255,0.4)" }}
           >
-            Crie um livro principal e depois adicione os PDFs por unidade.
+            Crie um livro e depois adicione os PDFs por unidade.
           </p>
         </div>
       )}
@@ -308,13 +313,14 @@ export default function LivrosAdminPage() {
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white truncate">
-                        {item.schools.map((s) => s.name).join(", ") ||
-                          "Unidade nao informada"}
+                        {item.name}
                       </p>
                       <p
                         className="text-xs mt-0.5"
                         style={{ color: "rgba(255,255,255,0.38)" }}
                       >
+                        {item.schools.map((s) => s.name).join(", ") ||
+                          "Unidade nao informada"}{" | "}
                         {item.grade_levels.map((g) => g.name).join(" | ") ||
                           "Ano nao informado"}{" "}
                         | {formatSize(item.file_size)}
@@ -368,14 +374,14 @@ export default function LivrosAdminPage() {
             }}
           >
             <FormHeader
-              title="Criar Livro Principal"
+              title="Criar Livro"
               onClose={() => setShowCollectionForm(false)}
             />
-            <Field label="Nome do livro principal *">
+            <Field label="Nome do livro *">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Livro principal do professor"
+                placeholder="Ex: Livro do professor"
                 className="input-base"
               />
             </Field>
@@ -457,6 +463,14 @@ export default function LivrosAdminPage() {
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field label="Nome do PDF *">
+              <input
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                placeholder="Ex: Unidade 1 - Livro do professor"
+                className="input-base"
+              />
             </Field>
             <Field
               label={`Anos escolares * (${selectedGrades.size} selecionado${selectedGrades.size !== 1 ? "s" : ""})`}

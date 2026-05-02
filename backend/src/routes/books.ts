@@ -40,9 +40,11 @@ const storage = multer.diskStorage({
   },
 });
 
+const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 400);
+
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype !== 'application/pdf') {
       return cb(new Error('Apenas arquivos PDF são aceitos.'));
@@ -50,6 +52,20 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+// Wrapper que captura erros do multer (LIMIT_FILE_SIZE, fileFilter) e responde com mensagem amigável.
+function uploadSingle(field: string) {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    upload.single(field)(req, res, (err: any) => {
+      if (!err) return next();
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        res.status(413).json({ message: `Arquivo muito grande. Limite: ${MAX_UPLOAD_MB} MB.` });
+        return;
+      }
+      res.status(400).json({ message: err.message || 'Erro no upload.' });
+    });
+  };
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 function parseIdList(raw: unknown): string[] {
@@ -73,7 +89,8 @@ function toBool(raw: unknown): boolean {
 async function loadBookWithLinks(bookId: string) {
   const bookRes = await query(
     `SELECT b.id, b.collection_id,
-            COALESCE(bc.name, b.name) AS name,
+            b.name,
+            bc.name AS collection_name,
             COALESCE(bc.subject, b.subject) AS subject,
             b.file_path, b.file_size, b.mime_type,
             COALESCE(bc.for_aluno, b.for_aluno) AS for_aluno,
@@ -105,7 +122,7 @@ async function loadBookWithLinks(bookId: string) {
 }
 
 async function createBookItem(req: AuthRequest, collectionId: string | null, file: Express.Multer.File) {
-  const { name, subject } = req.body;
+  const { name, subject, item_name } = req.body;
   const schoolIds = parseIdList(req.body.school_ids);
   const gradeIds = parseIdList(req.body.grade_level_ids);
   const forAluno = toBool(req.body.for_aluno);
@@ -113,6 +130,7 @@ async function createBookItem(req: AuthRequest, collectionId: string | null, fil
 
   const missing: string[] = [];
   if (!collectionId && !name?.trim()) missing.push('nome');
+  if (collectionId && !(typeof item_name === 'string' && item_name.trim())) missing.push('nome do PDF');
   if (schoolIds.length === 0) missing.push('ao menos uma unidade');
   if (gradeIds.length === 0) missing.push('ao menos um ano escolar');
   if (!collectionId && !forAluno && !forProfessor) missing.push('alvo (aluno e/ou professor)');
@@ -148,7 +166,7 @@ async function createBookItem(req: AuthRequest, collectionId: string | null, fil
   );
   if (collectionRes.rows.length === 0) {
     fs.unlink(file.path, () => {});
-    const err = new Error('Livro principal não encontrado.');
+    const err = new Error('Livro não encontrado.');
     (err as any).status = 404;
     throw err;
   }
@@ -159,7 +177,7 @@ async function createBookItem(req: AuthRequest, collectionId: string | null, fil
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
     [
       finalCollectionId,
-      collection.name,
+      (typeof item_name === 'string' && item_name.trim()) ? item_name.trim() : collection.name,
       collection.subject,
       path.basename(file.path),
       file.size,
@@ -192,7 +210,7 @@ router.post(
   '/',
   authenticate,
   authorize('super_admin'),
-  upload.single('file'),
+  uploadSingle('file'),
   async (req: AuthRequest, res: Response) => {
     try {
       const file = req.file;
@@ -215,7 +233,7 @@ router.post('/collections', authenticate, authorize('super_admin'), async (req: 
     const forProfessor = toBool(req.body.for_professor);
 
     const missing: string[] = [];
-    if (!name?.trim()) missing.push('nome do livro principal');
+    if (!name?.trim()) missing.push('nome do livro');
     if (!forAluno && !forProfessor) missing.push('aluno e/ou professor');
     if (missing.length > 0) {
       return res.status(400).json({ message: `Campos obrigatórios: ${missing.join(', ')}.` });
@@ -236,7 +254,7 @@ router.post('/collections', authenticate, authorize('super_admin'), async (req: 
     res.status(201).json({ ...result.rows[0], items: [] });
   } catch (err) {
     console.error('POST /books/collections:', err);
-    res.status(500).json({ message: 'Erro ao criar livro principal.' });
+    res.status(500).json({ message: 'Erro ao criar livro.' });
   }
 });
 
@@ -245,7 +263,7 @@ router.post(
   '/collections/:id/items',
   authenticate,
   authorize('super_admin'),
-  upload.single('file'),
+  uploadSingle('file'),
   async (req: AuthRequest, res: Response) => {
     try {
       const file = req.file;
@@ -269,6 +287,7 @@ router.get('/collections', authenticate, authorize('super_admin'), async (_req: 
                 json_agg(
                   DISTINCT jsonb_build_object(
                     'id', b.id,
+                    'name', b.name,
                     'file_size', b.file_size,
                     'created_at', b.created_at,
                     'schools', COALESCE(schools.items, '[]'::jsonb),
@@ -303,6 +322,97 @@ router.get('/collections', authenticate, authorize('super_admin'), async (_req: 
 });
 
 // ── GET / — lista livros visíveis para o usuário ────────────────
+function buildVisibleBookConditions(req: AuthRequest) {
+  const u = req.user!;
+  const role = u.role;
+  const schoolId = u.schoolId;
+  const conditions: string[] = ['b.deleted_at IS NULL'];
+  const params: unknown[] = [];
+
+  if (role === 'super_admin') {
+    // ve tudo
+  } else if (role === 'admin' || role === 'pedagogico') {
+    if (!schoolId) return null;
+    params.push(schoolId);
+    conditions.push(`EXISTS (SELECT 1 FROM book_schools bs WHERE bs.book_id = b.id AND bs.school_id = $${params.length})`);
+  } else if (role === 'professor') {
+    if (!schoolId) return null;
+    params.push(schoolId);
+    conditions.push(`EXISTS (SELECT 1 FROM book_schools bs WHERE bs.book_id = b.id AND bs.school_id = $${params.length})`);
+    conditions.push('COALESCE(bc.for_professor, b.for_professor) = true');
+  } else if (role === 'aluno') {
+    if (!schoolId) return null;
+    params.push(schoolId);
+    conditions.push(`EXISTS (SELECT 1 FROM book_schools bs WHERE bs.book_id = b.id AND bs.school_id = $${params.length})`);
+    conditions.push('COALESCE(bc.for_aluno, b.for_aluno) = true');
+    params.push(u.id);
+    conditions.push(`EXISTS (
+      SELECT 1 FROM book_grade_levels bg
+        JOIN classes c ON c.grade_level_id = bg.grade_level_id
+        JOIN class_students cs ON cs.class_id = c.id
+       WHERE bg.book_id = b.id AND cs.student_id = $${params.length} AND cs.active = true
+    )`);
+  } else {
+    return null;
+  }
+
+  return { conditions, params };
+}
+
+router.get('/my-collections', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const visibility = buildVisibleBookConditions(req);
+    if (!visibility) return res.json([]);
+    const { conditions, params } = visibility;
+
+    const result = await query(
+      `SELECT COALESCE(bc.id, b.id) AS id,
+              COALESCE(bc.name, b.name) AS name,
+              COALESCE(bc.subject, b.subject) AS subject,
+              COALESCE(bc.for_aluno, b.for_aluno) AS for_aluno,
+              COALESCE(bc.for_professor, b.for_professor) AS for_professor,
+              COALESCE(bc.created_at, b.created_at) AS created_at,
+              COALESCE(
+                json_agg(
+                  DISTINCT jsonb_build_object(
+                    'id', b.id,
+                    'name', b.name,
+                    'file_size', b.file_size,
+                    'created_at', b.created_at,
+                    'schools', COALESCE(schools.items, '[]'::jsonb),
+                    'grade_levels', COALESCE(grades.items, '[]'::jsonb)
+                  )
+                ) FILTER (WHERE b.id IS NOT NULL),
+                '[]'
+              ) AS items
+         FROM books b
+         LEFT JOIN book_collections bc ON bc.id = b.collection_id AND bc.deleted_at IS NULL
+         LEFT JOIN LATERAL (
+           SELECT jsonb_agg(jsonb_build_object('id', s.id, 'name', s.name) ORDER BY s.name) AS items
+             FROM book_schools bs
+             JOIN schools s ON s.id = bs.school_id AND s.deleted_at IS NULL
+            WHERE bs.book_id = b.id
+         ) schools ON true
+         LEFT JOIN LATERAL (
+           SELECT jsonb_agg(jsonb_build_object('id', g.id, 'name', g.name, 'order_index', g.order_index) ORDER BY g.order_index) AS items
+             FROM book_grade_levels bg
+             JOIN grade_levels g ON g.id = bg.grade_level_id
+            WHERE bg.book_id = b.id
+         ) grades ON true
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY COALESCE(bc.id, b.id), COALESCE(bc.name, b.name), COALESCE(bc.subject, b.subject),
+                 COALESCE(bc.for_aluno, b.for_aluno), COALESCE(bc.for_professor, b.for_professor),
+                 COALESCE(bc.created_at, b.created_at)
+        ORDER BY COALESCE(bc.created_at, b.created_at) DESC`,
+      params
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /books/my-collections:', err);
+    res.status(500).json({ message: 'Erro ao listar livros.' });
+  }
+});
+
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const u = req.user!;
@@ -342,7 +452,8 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     const result = await query(
       `SELECT b.id, b.collection_id,
-              COALESCE(bc.name, b.name) AS name,
+              b.name,
+              bc.name AS collection_name,
               COALESCE(bc.subject, b.subject) AS subject,
               b.file_size,
               COALESCE(bc.for_aluno, b.for_aluno) AS for_aluno,
@@ -373,7 +484,7 @@ router.get('/:id/file', authenticateFile, async (req: AuthRequest, res: Response
   try {
     const { id } = req.params;
     const result = await query(
-      `SELECT b.file_path, b.mime_type, COALESCE(bc.name, b.name) AS name
+      `SELECT b.file_path, b.mime_type, b.name
          FROM books b
          LEFT JOIN book_collections bc ON bc.id = b.collection_id AND bc.deleted_at IS NULL
         WHERE b.id = $1 AND b.deleted_at IS NULL`,
@@ -419,10 +530,10 @@ router.delete('/collections/:id', authenticate, authorize('super_admin'), async 
   try {
     await query(`UPDATE book_collections SET deleted_at = NOW() WHERE id = $1`, [req.params.id]);
     await query(`UPDATE books SET deleted_at = NOW() WHERE collection_id = $1`, [req.params.id]);
-    res.json({ message: 'Livro principal removido.' });
+    res.json({ message: 'Livro removido.' });
   } catch (err) {
     console.error('DELETE /books/collections/:id:', err);
-    res.status(500).json({ message: 'Erro ao remover livro principal.' });
+    res.status(500).json({ message: 'Erro ao remover livro.' });
   }
 });
 
