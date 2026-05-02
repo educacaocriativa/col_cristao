@@ -499,7 +499,12 @@ router.get('/:id/file', authenticateFile, async (req: AuthRequest, res: Response
       return res.status(404).json({ message: 'Arquivo do livro não encontrado.' });
     }
     res.setHeader('Content-Type', mime_type || 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(name)}.pdf"`);
+    // inline + sem filename → o navegador nem oferece "Salvar como..." automaticamente.
+    res.setHeader('Content-Disposition', 'inline');
+    // Reforço: cache-control privado e cabeçalhos que dificultam scraping.
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Download-Options', 'noopen');
     fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     console.error('GET /books/:id/file:', err);

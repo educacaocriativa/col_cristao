@@ -166,6 +166,7 @@ export default function MeuLivroView() {
         <div
           className="fixed inset-0 z-50 flex flex-col"
           style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)" }}
+          onContextMenu={(e) => e.preventDefault()}
         >
           <div
             className="flex items-center justify-between px-5 py-3 shrink-0"
@@ -174,27 +175,16 @@ export default function MeuLivroView() {
             <div className="min-w-0">
               <p className="text-sm font-bold text-white truncate">{itemTitle(selectedCollection, openItem)}</p>
               <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {openItem.grade_levels.map((g) => g.name).join(" | ")}
+                {openItem.grade_levels.map((g) => g.name).join(" | ")} · somente leitura
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <a
-                href={booksApi.fileUrlWithToken(openItem.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-xl text-xs font-semibold"
-                style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}
-              >
-                Abrir em nova aba
-              </a>
-              <button
-                onClick={() => setOpenItemId(null)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
-              >
-                x
-              </button>
-            </div>
+            <button
+              onClick={() => setOpenItemId(null)}
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
+            >
+              x
+            </button>
           </div>
           <div className="flex-1 min-h-0">
             <PdfViewer bookId={openItem.id} />
@@ -252,5 +242,13 @@ function PdfViewer({ bookId }: { bookId: string }) {
       </div>
     );
   }
-  return <iframe src={blobUrl} className="w-full h-full" title="Visualizador de PDF" />;
+  // #toolbar=0&navpanes=0 = esconde botões de download/print do visualizador nativo (Chrome/Edge).
+  return (
+    <iframe
+      src={`${blobUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+      className="w-full h-full"
+      title="Visualizador de PDF"
+      onContextMenu={(e) => e.preventDefault()}
+    />
+  );
 }

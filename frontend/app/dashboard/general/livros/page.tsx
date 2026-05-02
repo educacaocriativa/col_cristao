@@ -327,18 +327,6 @@ export default function LivrosAdminPage() {
                       </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <a
-                        href={booksApi.fileUrlWithToken(item.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs px-3 py-1.5 rounded-lg font-semibold"
-                        style={{
-                          background: "rgba(96,165,250,0.12)",
-                          color: "#60a5fa",
-                        }}
-                      >
-                        Abrir
-                      </a>
                       <button
                         onClick={() => removeItem(item)}
                         className="text-xs px-3 py-1.5 rounded-lg font-semibold"
