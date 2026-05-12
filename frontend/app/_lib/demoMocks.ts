@@ -270,6 +270,27 @@ const DEMO_ATIVIDADES = MOCK_ACTIVITIES.map((a) => ({
   bimester:   a.bimester,
 }));
 
+const DEMO_PROVAS = [
+  {
+    id: "prova-demo-1",
+    name: "Prova Diagnostica - Matematica",
+    original_filename: "prova-diagnostica-matematica.pdf",
+    file_size: 1843200,
+    mime_type: "application/pdf",
+    created_at: "2026-02-15T10:00:00Z",
+    created_by_name: "Sistema Admin",
+  },
+  {
+    id: "prova-demo-2",
+    name: "Simulado 1 - Lingua Portuguesa",
+    original_filename: "simulado-portugues.pdf",
+    file_size: 2310144,
+    mime_type: "application/pdf",
+    created_at: "2026-03-02T10:00:00Z",
+    created_by_name: "Sistema Admin",
+  },
+];
+
 // ── Matcher de endpoints ─────────────────────────────────────
 // Retorna o mock apropriado para o path, ou array/objeto vazio
 // para endpoints não mapeados (evita quebrar a UI).
@@ -365,6 +386,9 @@ export function getDemoMockFor(path: string): any {
 
   // Trilhas
   if (pathOnly === "/api/trilhas") return [];
+
+  // Provas
+  if (pathOnly === "/api/provas") return DEMO_PROVAS;
 
   // Fallback: array vazio para GETs desconhecidos
   return [];

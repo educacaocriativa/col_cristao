@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/comandante/comunicados",    label: "Comunicados",          icon: "📢" },
   { href: "/dashboard/comandante/calendario",     label: "Calendário Escolar",   icon: "🗓" },
   { href: "/dashboard/comandante/livros",         label: "Meu Livro",            icon: "📖" },
+  { href: "/dashboard/comandante/provas",         label: "Provas",               icon: "📄" },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -31,6 +32,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/dashboard/comandante/cronograma":   { title: "Cronograma de Aulas",subtitle: "Horário semanal e frequência por bimestre" },
   "/dashboard/comandante/calendario":  { title: "Calendário Escolar", subtitle: "Eventos e datas importantes" },
   "/dashboard/comandante/livros":      { title: "Meu Livro",          subtitle: "Material didático em PDF" },
+  "/dashboard/comandante/provas":      { title: "Provas",             subtitle: "PDFs de provas disponíveis para baixar" },
 };
 
 export default function ComandanteLayout({ children }: { children: React.ReactNode }) {

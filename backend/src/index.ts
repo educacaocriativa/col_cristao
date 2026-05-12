@@ -20,6 +20,7 @@ import bnccRoutes from './routes/bncc';
 import subjectsRoutes from './routes/subjects';
 import scheduleRoutes from './routes/schedule';
 import booksRoutes from './routes/books';
+import provasRoutes from './routes/provas';
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use('/api/bncc', bnccRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/books', booksRoutes);
+app.use('/api/provas', provasRoutes);
 
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

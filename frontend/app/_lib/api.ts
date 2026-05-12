@@ -373,6 +373,27 @@ export const booksApi = {
 };
 
 // ── Utility ───────────────────────────────────────────────────
+// Provas em PDF
+export const provasApi = {
+  list: (params?: Record<string, string>) =>
+    api.get(`/api/provas${toQuery(params)}`),
+  downloadUrlWithToken: (id: string) => {
+    const t = getToken();
+    return t ? `${BASE}/api/provas/${id}/download?token=${encodeURIComponent(t)}` : `${BASE}/api/provas/${id}/download`;
+  },
+  create: async (form: FormData) => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${BASE}/api/provas`, { method: 'POST', body: form, headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+};
+
 function toQuery(params?: Record<string, string>): string {
   if (!params || !Object.keys(params).length) return '';
   const qs = new URLSearchParams(
